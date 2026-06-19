@@ -1,6 +1,6 @@
 image:
   repository: 123456789012.dkr.ecr.us-east-1.amazonaws.com/platform-control-plane
-  tag: v0.2.0
+  tag: v0.3.0
 
 ingress:
   enabled: true

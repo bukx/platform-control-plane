@@ -68,17 +68,23 @@ func main() {
 	}
 
 	reconciler, err := reconcile.NewGitOpsKubernetesReconciler(logger, reconcile.Config{
-		GitOpsRepoPath: cfg.GitOpsRepoPath,
-		ClusterName:    cfg.ClusterName,
-		GitOpsRepoURL:  cfg.GitOpsRepoURL,
-		GitAuthorName:  cfg.GitAuthorName,
-		GitAuthorEmail: cfg.GitAuthorEmail,
-		GitBranch:      cfg.GitBranch,
-		GitRemoteName:  cfg.GitRemoteName,
-		GitCommit:      cfg.GitCommitEnabled,
-		GitPush:        cfg.GitPushEnabled,
-		KubeApply:      cfg.KubeApply,
-		KubeconfigPath: cfg.KubeconfigPath,
+		GitOpsRepoPath:         cfg.GitOpsRepoPath,
+		ClusterName:            cfg.ClusterName,
+		GitOpsRepoURL:          cfg.GitOpsRepoURL,
+		GitAuthorName:          cfg.GitAuthorName,
+		GitAuthorEmail:         cfg.GitAuthorEmail,
+		GitBranch:              cfg.GitBranch,
+		GitBaseBranch:          cfg.GitBaseBranch,
+		GitRemoteName:          cfg.GitRemoteName,
+		GitCommit:              cfg.GitCommitEnabled,
+		GitPush:                cfg.GitPushEnabled,
+		GitPromotionMode:       cfg.GitPromotionMode,
+		GitPromotionBranchPref: cfg.GitPromotionBranchPref,
+		GitProvider:            cfg.GitProvider,
+		GitHubRepo:             cfg.GitHubRepo,
+		GitPRCreate:            cfg.GitPRCreate,
+		KubeApply:              cfg.KubeApply,
+		KubeconfigPath:         cfg.KubeconfigPath,
 	})
 	if err != nil {
 		log.Fatalf("build reconciler: %v", err)

@@ -10,7 +10,7 @@ Recommended stack:
 
 ## Suggested Wiring
 
-- Store `PLATFORM_POSTGRES_DSN`, `PLATFORM_APPROVAL_HMAC_SECRET`, `PLATFORM_OIDC_ISSUER_URL`, and `PLATFORM_OIDC_AUDIENCE` in AWS Secrets Manager.
+- Store `PLATFORM_POSTGRES_DSN`, `PLATFORM_APPROVAL_HMAC_SECRET`, `PLATFORM_OIDC_ISSUER_URL`, `PLATFORM_OIDC_AUDIENCE`, and `GH_TOKEN` in AWS Secrets Manager when PR creation is enabled.
 - Sync those into the `platform-control-plane-secrets` Kubernetes secret with External Secrets Operator.
 - Use `deploy/kubernetes/production/values-aws.yaml` as the starting point.
 - Point OIDC at Cognito, Okta, Auth0, or your enterprise IdP.
@@ -28,4 +28,4 @@ helm upgrade --install platform-control-plane charts/platform-control-plane \
 
 - Prefer ECR for the runtime image.
 - Use an EBS-backed PVC if the local GitOps worktree needs persistent disk.
-- If you move to PR-based GitOps promotion later, bind credentials through IRSA or a Git credential sidecar/secret.
+- For PR-based GitOps promotion, bind `GH_TOKEN` through Secrets Manager or External Secrets and scope it to repo-only operations.

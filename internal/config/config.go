@@ -28,9 +28,15 @@ type Config struct {
 	GitAuthorName          string
 	GitAuthorEmail         string
 	GitBranch              string
+	GitBaseBranch          string
 	GitRemoteName          string
 	GitCommitEnabled       bool
 	GitPushEnabled         bool
+	GitPromotionMode       string
+	GitPromotionBranchPref string
+	GitProvider            string
+	GitHubRepo             string
+	GitPRCreate            bool
 	ClusterName            string
 	KubeApply              bool
 	KubeconfigPath         string
@@ -75,9 +81,15 @@ func Load() (Config, error) {
 		GitAuthorName:          envOrDefault("PLATFORM_GIT_AUTHOR_NAME", "Platform Control Plane"),
 		GitAuthorEmail:         envOrDefault("PLATFORM_GIT_AUTHOR_EMAIL", "platform@example.com"),
 		GitBranch:              envOrDefault("PLATFORM_GIT_BRANCH", "main"),
+		GitBaseBranch:          envOrDefault("PLATFORM_GIT_BASE_BRANCH", "main"),
 		GitRemoteName:          envOrDefault("PLATFORM_GIT_REMOTE", "origin"),
 		GitCommitEnabled:       envOrDefault("PLATFORM_GIT_COMMIT_ENABLED", "true") == "true",
 		GitPushEnabled:         envOrDefault("PLATFORM_GIT_PUSH_ENABLED", "false") == "true",
+		GitPromotionMode:       envOrDefault("PLATFORM_GIT_PROMOTION_MODE", "direct"),
+		GitPromotionBranchPref: envOrDefault("PLATFORM_GIT_PROMOTION_BRANCH_PREFIX", "promotion"),
+		GitProvider:            envOrDefault("PLATFORM_GIT_PROVIDER", "github"),
+		GitHubRepo:             envOrDefault("PLATFORM_GITHUB_REPO", ""),
+		GitPRCreate:            envOrDefault("PLATFORM_GIT_PR_CREATE", "false") == "true",
 		ClusterName:            envOrDefault("PLATFORM_CLUSTER_NAME", "platform-dev"),
 		KubeApply:              envOrDefault("PLATFORM_K8S_APPLY", "false") == "true",
 		KubeconfigPath:         os.Getenv("PLATFORM_KUBECONFIG"),
@@ -176,6 +188,12 @@ func (c Config) validate() error {
 
 	if c.ReadTimeoutSec < 1 || c.WriteTimeoutSec < 1 || c.IdleTimeoutSec < 1 || c.ShutdownTimeoutSec < 1 || c.ReadinessTimeoutSec < 1 {
 		return fmt.Errorf("http and readiness timeout values must be greater than zero")
+	}
+	if c.GitPromotionMode != "direct" && c.GitPromotionMode != "pull_request" {
+		return fmt.Errorf("unsupported PLATFORM_GIT_PROMOTION_MODE %q", c.GitPromotionMode)
+	}
+	if c.GitPromotionMode == "pull_request" && !c.GitPushEnabled {
+		return fmt.Errorf("pull-request promotion requires PLATFORM_GIT_PUSH_ENABLED=true")
 	}
 
 	return nil

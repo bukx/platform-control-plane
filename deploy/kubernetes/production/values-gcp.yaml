@@ -1,6 +1,6 @@
 image:
   repository: us-docker.pkg.dev/your-project/platform/platform-control-plane
-  tag: v0.2.0
+  tag: v0.3.0
 
 ingress:
   enabled: true

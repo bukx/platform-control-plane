@@ -83,6 +83,12 @@ spec:
                   name: {{ .Values.secretRefs.existingSecret }}
                   key: {{ .Values.secretRefs.gitopsRepoUrlKey }}
                   optional: true
+            - name: GH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretRefs.existingSecret }}
+                  key: {{ .Values.secretRefs.githubTokenKey }}
+                  optional: true
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

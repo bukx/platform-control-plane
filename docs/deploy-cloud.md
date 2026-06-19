@@ -20,6 +20,7 @@ kubectl apply -f deploy/kubernetes/production/namespace.yaml
 ```
 
 3. Sync secrets from your cloud secret manager into a Kubernetes secret named `platform-control-plane-secrets`.
+   Include `GH_TOKEN` if you enable pull-request promotion creation.
 4. Run the Helm release with the environment-specific values file:
 
 ```bash
@@ -38,14 +39,16 @@ helm upgrade --install platform-control-plane charts/platform-control-plane \
 - real `/readyz` checks for repository, queue backend, GitOps path, Kubernetes dependency, and OIDC discovery
 - hardened HTTP server timeouts
 - secret-manager-friendly config via `*_FILE` support and secret-backed env vars in Helm
+- promotion-branch and GitHub PR flow for GitOps rollout instead of direct branch-only updates
+- quota profile, policy pack, and estimated monthly cost metadata per environment class
 
 ## Image Build
 
 Example build:
 
 ```bash
-docker build -t ghcr.io/bukx/platform-control-plane:v0.2.0 .
-docker push ghcr.io/bukx/platform-control-plane:v0.2.0
+docker build -t ghcr.io/bukx/platform-control-plane:v0.3.0 .
+docker push ghcr.io/bukx/platform-control-plane:v0.3.0
 ```
 
 Update the values file for your registry before deploying.
