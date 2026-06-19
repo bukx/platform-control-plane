@@ -1,0 +1,27 @@
+typemeta:
+    kind: Namespace
+    apiversion: v1
+objectmeta:
+    name: platform-billing-api-7cefd1c0
+    generatename: ""
+    namespace: ""
+    selflink: ""
+    uid: ""
+    resourceversion: ""
+    generation: 0
+    creationtimestamp: "0001-01-01T00:00:00Z"
+    deletiontimestamp: null
+    deletiongraceperiodseconds: null
+    labels:
+        platform.example.com/app: billing-api
+        platform.example.com/class: production
+        platform.example.com/team: platform
+    annotations: {}
+    ownerreferences: []
+    finalizers: []
+    managedfields: []
+spec:
+    finalizers: []
+status:
+    phase: ""
+    conditions: []
