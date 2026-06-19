@@ -1,46 +1,72 @@
 # Platform Control Plane
 
-`platform-control-plane` is a principal-level Go platform engineering showcase repo: a thin internal developer platform control plane that exposes environment classes, accepts environment requests, enforces approval policy, persists state in Postgres, emits OpenTelemetry telemetry, reconciles requests through async workers, and publishes real GitOps commits plus Kubernetes bootstrap artifacts.
+[![CI](https://github.com/bukx/platform-control-plane/actions/workflows/ci.yml/badge.svg)](https://github.com/bukx/platform-control-plane/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/bukx/platform-control-plane)](https://github.com/bukx/platform-control-plane/releases)
 
-This is intentionally positioned above a single microservice demo. It reads like the beginning of a real internal platform:
+`platform-control-plane` is a principal-level Go platform engineering showcase repo: a thin internal developer platform control plane that accepts environment requests, enforces approval policy, persists state in Postgres, emits OpenTelemetry telemetry, drives async reconciliation, and publishes real GitOps commits plus Kubernetes bootstrap artifacts.
 
-- API server with health, readiness, and versioned endpoints
-- CLI for platform operators and app teams
-- Domain, service, store, and transport layers separated cleanly
-- Policy-aware approval flow for production-grade environment classes
-- Structured logging, graceful shutdown, tests, Docker, and CI
-- Selectable memory or Postgres persistence
-- OpenTelemetry tracing plus Prometheus-scrapable metrics
-- Async worker queue for reconciliation
-- Header-based auth/RBAC with signed approvals
-- GitOps reconcile output that renders Argo CD and Kubernetes manifests, then commits them into Git
+This is intentionally positioned above a toy CRUD service. It is meant to read like the beginning of a real internal platform team control plane:
 
-## Why This Repo Works For Platform Engineering
+- API server with health, readiness, metrics, and versioned endpoints
+- CLI for platform operators, approvers, and app teams
+- Domain, service, store, queue, and transport layers separated cleanly
+- JWT/OIDC auth, RBAC, and HMAC-signed approvals for production workflows
+- Selectable memory or Postgres persistence with a durable reconcile job table
+- OpenTelemetry tracing, Prometheus-scrapable metrics, and structured logs
+- Async reconciliation workers that render Kubernetes and Argo CD artifacts
+- GitOps commit and optional push flow instead of local-only manifest output
+- Tests, Docker, local dev stack, and GitHub Actions CI
 
-Hiring managers and staff/principal reviewers usually want more than "here is a CRUD app in Go." This repo shows platform thinking:
+## Why This Repo Stands Out
 
-- clear control-plane boundaries
-- policy enforcement before provisioning
-- idempotent reconcile workflow
-- operator-facing CLI
-- production-ish project layout
-- docs that explain architecture instead of only usage
+Hiring managers and staff/principal reviewers usually want more than "here is a Go API." This repo demonstrates platform judgment:
+
+- clear control-plane boundaries instead of generic CRUD handlers
+- approval and policy gates before provisioning
+- async, idempotent reconcile workflow with retries and leases
+- operator-facing CLI and developer-facing request model
+- observability and operability designed into the happy path
+- GitOps-oriented delivery instead of direct imperative provisioning
+
+## What This Repo Proves
+
+- I can design a control plane around workflows, policy, and operability instead of only resource endpoints.
+- I can model real platform concerns in Go: auth, queueing, retries, GitOps, telemetry, and persistence.
+- I can package the work as something another engineer could run, review, and extend.
 
 ## Architecture
+
+```mermaid
+flowchart LR
+    A[App Team or Platform Operator] --> B[platformctl CLI]
+    B --> C[platformd API]
+    C --> D[Auth and RBAC]
+    C --> E[Service and Policy Layer]
+    E --> F[(Postgres or Memory Store)]
+    E --> G[(Reconcile Queue)]
+    G --> H[Async Workers]
+    H --> I[GitOps Repo]
+    H --> J[Kubernetes Cluster]
+    C --> K[Metrics, Logs, and Traces]
+```
+
+## Repository Layout
 
 ```text
 platform-control-plane/
 ├── cmd/
 │   ├── platformd/      # HTTP API server
-│   └── platformctl/    # Operator/app-team CLI
+│   └── platformctl/    # Operator and app-team CLI
 ├── docs/               # Architecture and extension notes
 ├── examples/           # Sample API payloads
 ├── internal/
 │   ├── api/            # HTTP handlers and routing
+│   ├── auth/           # JWT/OIDC auth and role extraction
 │   ├── config/         # Environment-based config
 │   ├── domain/         # Core types and state transitions
-│   ├── observability/  # Structured logging + OpenTelemetry bootstrap
-│   ├── reconcile/      # GitOps and Kubernetes reconcile adapters
+│   ├── observability/  # Structured logging and OpenTelemetry bootstrap
+│   ├── queue/          # Memory and Postgres-backed reconcile queues
+│   ├── reconcile/      # GitOps, Git commit/push, and Kubernetes rendering
 │   ├── service/        # Policy and workflow logic
 │   └── store/          # Memory and Postgres repository implementations
 ├── .github/workflows/ci.yml
@@ -247,8 +273,8 @@ When `PLATFORM_STORAGE_BACKEND=postgres`, the queue is durable and backed by a `
 
 ## Next Principal-Level Extensions
 
-- Add RBAC and signed approvals
-- Add queue-backed asynchronous reconcilers
-- Introduce workload templates, quotas, and cost controls
+- PR-based GitOps promotion instead of direct branch push
+- Drift detection and reconcile status feedback from the target cluster
+- Cost, quota, and policy packs per environment class
 
 The repo is intentionally shaped so those additions fit naturally instead of requiring a rewrite.
