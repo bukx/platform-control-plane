@@ -71,7 +71,7 @@ Process bootstrap: config, logger, graceful shutdown, HTTP server lifecycle.
 
 Thin CLI that makes the API usable in demos, scripts, and GitHub Actions.
 
-## Why This Feels Principal-Level
+## Why This Feels Production-Shaped
 
 - Clear control plane versus data plane separation
 - Policy modeled as a first-class concern
