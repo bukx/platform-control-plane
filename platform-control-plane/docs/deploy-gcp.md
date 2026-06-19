@@ -13,6 +13,7 @@ Recommended stack:
 - Use `deploy/kubernetes/production/values-gcp.yaml` as the starting point.
 - Use Workload Identity if the control plane eventually needs GCP API access.
 - Use a private Cloud SQL connection path or authorized network configuration for Postgres access.
+- If PR creation is enabled, sync `GH_TOKEN` into the release secret.
 
 ## Deploy
 

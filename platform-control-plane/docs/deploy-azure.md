@@ -12,6 +12,7 @@ Recommended stack:
 - Sync runtime secrets from Key Vault into `platform-control-plane-secrets` with the Secrets Store CSI Driver or External Secrets.
 - Use `deploy/kubernetes/production/values-azure.yaml` as the starting point.
 - Configure OIDC against Microsoft Entra ID or your enterprise IdP.
+- Add `GH_TOKEN` to the synced secret when PR-based GitOps promotion is enabled.
 
 ## Deploy
 

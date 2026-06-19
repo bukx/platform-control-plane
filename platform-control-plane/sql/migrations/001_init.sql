@@ -4,7 +4,10 @@ create table if not exists environment_classes (
     allowed_regions text[] not null,
     requires_approval boolean not null,
     max_ttl_hours integer not null,
-    default_namespaces integer not null
+    default_namespaces integer not null,
+    quota_profile text not null default 'small',
+    policy_packs text[] not null default '{}'::text[],
+    estimated_monthly_cost_usd integer not null default 0
 );
 
 create table if not exists environment_requests (
@@ -31,7 +34,16 @@ create table if not exists environment_requests (
     last_reconciled_at timestamptz null
     ,
     git_commit_sha text not null default '',
-    git_branch text not null default ''
+    git_branch text not null default '',
+    git_promotion_mode text not null default '',
+    git_promotion_branch text not null default '',
+    git_promotion_url text not null default '',
+    cluster_status text not null default '',
+    drift_status text not null default '',
+    drift_summary text not null default '',
+    quota_profile text not null default '',
+    policy_packs text[] not null default '{}'::text[],
+    estimated_monthly_cost_usd integer not null default 0
 );
 
 create index if not exists environment_requests_team_idx on environment_requests(team);

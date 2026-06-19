@@ -2,7 +2,7 @@ replicaCount: 2
 
 image:
   repository: ghcr.io/bukx/platform-control-plane
-  tag: v0.2.0
+  tag: v0.3.0
   pullPolicy: IfNotPresent
 
 nameOverride: ""
@@ -74,9 +74,15 @@ config:
   gitAuthorName: Platform Control Plane
   gitAuthorEmail: platform@example.com
   gitBranch: main
+  gitBaseBranch: main
   gitRemoteName: origin
   gitCommitEnabled: true
-  gitPushEnabled: false
+  gitPushEnabled: true
+  gitPromotionMode: pull_request
+  gitPromotionBranchPrefix: promotion
+  gitProvider: github
+  githubRepo: your-org/gitops-repo
+  gitPrCreate: true
   clusterName: prod-cluster
   kubeApply: false
   reconcileWorkers: 2
@@ -105,6 +111,7 @@ secretRefs:
   oidcSubjectClaimKey: PLATFORM_OIDC_SUBJECT_CLAIM
   oidcActorClaimKey: PLATFORM_OIDC_ACTOR_CLAIM
   gitopsRepoUrlKey: PLATFORM_GITOPS_REPO_URL
+  githubTokenKey: GH_TOKEN
 
 persistence:
   enabled: true

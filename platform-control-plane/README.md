@@ -14,7 +14,9 @@ This is intentionally positioned above a toy CRUD service. It is meant to read l
 - Selectable memory or Postgres persistence with a durable reconcile job table
 - OpenTelemetry tracing, Prometheus-scrapable metrics, and structured logs
 - Async reconciliation workers that render Kubernetes and Argo CD artifacts
-- GitOps commit and optional push flow instead of local-only manifest output
+- GitOps direct-push or promotion-branch/PR flow instead of local-only manifest output
+- Drift feedback from the target cluster plus persisted reconcile status metadata
+- Quota profiles, policy packs, and estimated monthly cost attached to environment classes
 - Helm chart, migration job, and cloud deployment overlays for AWS/GCP/Azure
 - Tests, Docker, local dev stack, and GitHub Actions CI
 
@@ -27,12 +29,13 @@ Hiring managers and staff/principal reviewers usually want more than "here is a 
 - async, idempotent reconcile workflow with retries and leases
 - operator-facing CLI and developer-facing request model
 - observability and operability designed into the happy path
-- GitOps-oriented delivery instead of direct imperative provisioning
+- GitOps-oriented delivery with promotion controls instead of direct imperative provisioning
 
 ## What This Repo Proves
 
 - I can design a control plane around workflows, policy, and operability instead of only resource endpoints.
 - I can model real platform concerns in Go: auth, queueing, retries, GitOps, telemetry, and persistence.
+- I can encode platform policy as quota profiles, policy packs, drift feedback, and release promotion rules.
 - I can package the work as something another engineer could run, review, and extend.
 
 ## Architecture
@@ -46,8 +49,9 @@ flowchart LR
     E --> F[(Postgres or Memory Store)]
     E --> G[(Reconcile Queue)]
     G --> H[Async Workers]
-    H --> I[GitOps Repo]
+    H --> I[GitOps Repo / PR Branch]
     H --> J[Kubernetes Cluster]
+    J --> H
     C --> K[Metrics, Logs, and Traces]
 ```
 
@@ -124,6 +128,8 @@ helm upgrade --install platform-control-plane charts/platform-control-plane \
   --namespace platform-system \
   -f deploy/kubernetes/production/values-aws.yaml
 ```
+
+The production chart now defaults to PR-based GitOps promotion and expects a `GH_TOKEN` secret when `PLATFORM_GIT_PR_CREATE=true`.
 
 In another terminal:
 
@@ -248,6 +254,8 @@ Local Jaeger is available at `http://localhost:16686` after `make dev-stack-up`.
 - hardened HTTP server timeouts for read, write, idle, and shutdown handling
 - strict production mode via `PLATFORM_STRICT_PRODUCTION=true`
 - `*_FILE` secret support so secrets can come from mounted files or secret managers
+- promotion-branch and pull-request GitOps flow for controlled change rollout
+- drift summary and cluster sync feedback persisted on environment requests
 
 ## Storage
 
@@ -302,10 +310,45 @@ The request lifecycle is now:
 
 When `PLATFORM_STORAGE_BACKEND=postgres`, the queue is durable and backed by a `reconcile_jobs` table with retry/backoff and lease recovery semantics.
 
+## GitOps Promotion And Drift Feedback
+
+Relevant GitOps env vars:
+
+- `PLATFORM_GIT_PROMOTION_MODE=direct|pull_request`
+- `PLATFORM_GIT_PUSH_ENABLED=true`
+- `PLATFORM_GIT_BASE_BRANCH`
+- `PLATFORM_GIT_PROMOTION_BRANCH_PREFIX`
+- `PLATFORM_GIT_PROVIDER`
+- `PLATFORM_GITHUB_REPO`
+- `PLATFORM_GIT_PR_CREATE=true|false`
+
+When pull-request promotion is enabled, reconcile writes manifests to a promotion branch, pushes that branch, and can create a GitHub pull request when `gh` plus `GH_TOKEN` are available.
+
+When Kubernetes apply is enabled, reconcile also records drift/sync feedback on the request:
+
+- `cluster_status`
+- `drift_status`
+- `drift_summary`
+
+## Policy Packs And Quota Profiles
+
+Each `EnvironmentClass` now carries:
+
+- `quota_profile`
+- `policy_packs`
+- `estimated_monthly_cost_usd`
+
+Those settings flow into:
+
+- rendered `resourcequota.yaml`
+- rendered `limitrange.yaml`
+- rendered `policypack.yaml`
+- persisted request metadata for auditability
+
 ## Next Principal-Level Extensions
 
-- PR-based GitOps promotion instead of direct branch push
-- Drift detection and reconcile status feedback from the target cluster
-- Cost, quota, and policy packs per environment class
+- Admission-controller or OPA integration for policy pack enforcement
+- Scheduled drift scans and reconcile history timeline views
+- Multi-stage promotion across preview, staging, and production tracks
 
 The repo is intentionally shaped so those additions fit naturally instead of requiring a rewrite.

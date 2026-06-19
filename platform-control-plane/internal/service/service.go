@@ -74,28 +74,37 @@ func (s *PlatformService) SetQueue(queue ReconcileQueue) {
 func DefaultClasses() []domain.EnvironmentClass {
 	return []domain.EnvironmentClass{
 		{
-			Name:              "preview",
-			Description:       "Self-service preview environments for pull requests and fast validation.",
-			AllowedRegions:    []string{"us-east-1", "us-west-2"},
-			RequiresApproval:  false,
-			MaxTTLHours:       72,
-			DefaultNamespaces: 1,
+			Name:                    "preview",
+			Description:             "Self-service preview environments for pull requests and fast validation.",
+			AllowedRegions:          []string{"us-east-1", "us-west-2"},
+			RequiresApproval:        false,
+			MaxTTLHours:             72,
+			DefaultNamespaces:       1,
+			QuotaProfile:            "small",
+			PolicyPacks:             []string{"baseline-security", "preview-networking", "cost-guardrails"},
+			EstimatedMonthlyCostUSD: 150,
 		},
 		{
-			Name:              "production",
-			Description:       "Approval-gated production environments with stricter policy boundaries.",
-			AllowedRegions:    []string{"us-east-1", "us-west-2"},
-			RequiresApproval:  true,
-			MaxTTLHours:       24,
-			DefaultNamespaces: 4,
+			Name:                    "production",
+			Description:             "Approval-gated production environments with stricter policy boundaries.",
+			AllowedRegions:          []string{"us-east-1", "us-west-2"},
+			RequiresApproval:        true,
+			MaxTTLHours:             24,
+			DefaultNamespaces:       4,
+			QuotaProfile:            "large",
+			PolicyPacks:             []string{"baseline-security", "zero-trust-networking", "audit-retention", "sox-controls"},
+			EstimatedMonthlyCostUSD: 2400,
 		},
 		{
-			Name:              "shared-staging",
-			Description:       "Shared staging space for multi-service integration and manual QA.",
-			AllowedRegions:    []string{"us-east-1"},
-			RequiresApproval:  false,
-			MaxTTLHours:       168,
-			DefaultNamespaces: 2,
+			Name:                    "shared-staging",
+			Description:             "Shared staging space for multi-service integration and manual QA.",
+			AllowedRegions:          []string{"us-east-1"},
+			RequiresApproval:        false,
+			MaxTTLHours:             168,
+			DefaultNamespaces:       2,
+			QuotaProfile:            "medium",
+			PolicyPacks:             []string{"baseline-security", "shared-services", "cost-guardrails"},
+			EstimatedMonthlyCostUSD: 700,
 		},
 	}
 }
@@ -131,18 +140,21 @@ func (s *PlatformService) CreateRequest(ctx context.Context, in domain.CreateReq
 	}
 
 	req := domain.EnvironmentRequest{
-		ID:         newID(),
-		App:        strings.TrimSpace(in.App),
-		Team:       strings.TrimSpace(in.Team),
-		Class:      class.Name,
-		Region:     strings.TrimSpace(in.Region),
-		TTLHours:   in.TTLHours,
-		Owner:      strings.TrimSpace(in.Owner),
-		Repository: strings.TrimSpace(in.Repository),
-		Revision:   defaultRevision(in.Revision),
-		Labels:     sanitizeLabels(in.Labels),
-		Status:     status,
-		CreatedAt:  s.clock(),
+		ID:                      newID(),
+		App:                     strings.TrimSpace(in.App),
+		Team:                    strings.TrimSpace(in.Team),
+		Class:                   class.Name,
+		Region:                  strings.TrimSpace(in.Region),
+		TTLHours:                in.TTLHours,
+		Owner:                   strings.TrimSpace(in.Owner),
+		Repository:              strings.TrimSpace(in.Repository),
+		Revision:                defaultRevision(in.Revision),
+		Labels:                  sanitizeLabels(in.Labels),
+		Status:                  status,
+		CreatedAt:               s.clock(),
+		QuotaProfile:            class.QuotaProfile,
+		PolicyPacks:             append([]string(nil), class.PolicyPacks...),
+		EstimatedMonthlyCostUSD: class.EstimatedMonthlyCostUSD,
 	}
 
 	created, err := s.repo.CreateRequest(ctx, req)
@@ -270,6 +282,15 @@ func (s *PlatformService) ProcessReconcileRequest(ctx context.Context, id string
 	req.GitOpsPath = result.GitOpsPath
 	req.GitCommitSHA = result.GitCommitSHA
 	req.GitBranch = result.GitBranch
+	req.GitPromotionMode = result.GitPromotionMode
+	req.GitPromotionBranch = result.GitPromotionBranch
+	req.GitPromotionURL = result.GitPromotionURL
+	req.ClusterStatus = result.ClusterStatus
+	req.DriftStatus = result.DriftStatus
+	req.DriftSummary = result.DriftSummary
+	req.QuotaProfile = class.QuotaProfile
+	req.PolicyPacks = append([]string(nil), class.PolicyPacks...)
+	req.EstimatedMonthlyCostUSD = class.EstimatedMonthlyCostUSD
 	req.LastError = ""
 	updated, err := s.repo.UpdateRequest(ctx, req)
 	if err != nil {
