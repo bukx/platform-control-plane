@@ -1,0 +1,40 @@
+typemeta:
+    kind: ResourceQuota
+    apiversion: v1
+objectmeta:
+    name: platform-defaults
+    generatename: ""
+    namespace: platform-billing-api-7cefd1c0
+    selflink: ""
+    uid: ""
+    resourceversion: ""
+    generation: 0
+    creationtimestamp: "0001-01-01T00:00:00Z"
+    deletiontimestamp: null
+    deletiongraceperiodseconds: null
+    labels: {}
+    annotations: {}
+    ownerreferences: []
+    finalizers: []
+    managedfields: []
+spec:
+    hard:
+        limits.cpu:
+            format: DecimalSI
+        limits.memory:
+            format: BinarySI
+        persistentvolumeclaims:
+            format: DecimalSI
+        pods:
+            format: DecimalSI
+        requests.cpu:
+            format: DecimalSI
+        requests.memory:
+            format: BinarySI
+        services:
+            format: DecimalSI
+    scopes: []
+    scopeselector: null
+status:
+    hard: {}
+    used: {}
