@@ -1,0 +1,6 @@
+apiVersion: v2
+name: platform-control-plane
+description: Principal-level Go platform control plane with JWT/OIDC auth, durable queueing, and GitOps/Kubernetes reconciliation.
+type: application
+version: 0.2.0
+appVersion: "0.2.0"

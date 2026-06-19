@@ -13,6 +13,7 @@ var ErrNotFound = errors.New("resource not found")
 
 type Repository interface {
 	Close() error
+	Ready(context.Context) error
 	UpsertClasses(context.Context, []domain.EnvironmentClass) error
 	ListClasses(context.Context) ([]domain.EnvironmentClass, error)
 	GetClass(context.Context, string) (domain.EnvironmentClass, error)
@@ -41,6 +42,10 @@ func NewMemoryRepository(classes []domain.EnvironmentClass) *MemoryRepository {
 }
 
 func (r *MemoryRepository) Close() error {
+	return nil
+}
+
+func (r *MemoryRepository) Ready(context.Context) error {
 	return nil
 }
 

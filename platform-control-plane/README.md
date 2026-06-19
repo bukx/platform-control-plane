@@ -15,6 +15,7 @@ This is intentionally positioned above a toy CRUD service. It is meant to read l
 - OpenTelemetry tracing, Prometheus-scrapable metrics, and structured logs
 - Async reconciliation workers that render Kubernetes and Argo CD artifacts
 - GitOps commit and optional push flow instead of local-only manifest output
+- Helm chart, migration job, and cloud deployment overlays for AWS/GCP/Azure
 - Tests, Docker, local dev stack, and GitHub Actions CI
 
 ## Why This Repo Stands Out
@@ -101,6 +102,27 @@ export PLATFORM_APPROVAL_HMAC_SECRET=dev-approval-secret
 export PLATFORM_JWT_HS256_SECRET=dev-jwt-secret
 
 make run
+```
+
+## Production Deployment
+
+This repo now includes a production-shaped deployment path:
+
+- Helm chart: `charts/platform-control-plane/`
+- migration job binary: `cmd/platformmigrate/`
+- cloud overlays: `deploy/kubernetes/production/values-{aws,gcp,azure}.yaml`
+- deployment docs:
+  - `docs/deploy-cloud.md`
+  - `docs/deploy-aws.md`
+  - `docs/deploy-gcp.md`
+  - `docs/deploy-azure.md`
+
+Example:
+
+```bash
+helm upgrade --install platform-control-plane charts/platform-control-plane \
+  --namespace platform-system \
+  -f deploy/kubernetes/production/values-aws.yaml
 ```
 
 In another terminal:
@@ -219,6 +241,14 @@ If `PLATFORM_GIT_COMMIT_ENABLED=true`, every reconcile also stages and commits t
 
 Local Jaeger is available at `http://localhost:16686` after `make dev-stack-up`.
 
+## Production Hardening Added
+
+- explicit `platformmigrate` command for release-safe schema application
+- real `/readyz` checks for Postgres, queue backend, GitOps path, Kubernetes dependency, and OIDC discovery
+- hardened HTTP server timeouts for read, write, idle, and shutdown handling
+- strict production mode via `PLATFORM_STRICT_PRODUCTION=true`
+- `*_FILE` secret support so secrets can come from mounted files or secret managers
+
 ## Storage
 
 - `PLATFORM_STORAGE_BACKEND=memory` for quick demos
@@ -248,6 +278,7 @@ Relevant auth env vars:
 - `PLATFORM_OIDC_SUBJECT_CLAIM`
 - `PLATFORM_OIDC_ACTOR_CLAIM`
 - `PLATFORM_JWT_HS256_SECRET`
+- `PLATFORM_ALLOW_STATIC_JWT_IN_PROD`
 
 Production-style approvals are still HMAC-signed using `PLATFORM_APPROVAL_HMAC_SECRET`. The CLI computes the approval signature automatically when you pass `--approval-secret` or set the env var.
 

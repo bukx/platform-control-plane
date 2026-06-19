@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -29,14 +30,30 @@ type Server struct {
 	authenticator auth.Authenticator
 	service       PlatformService
 	mux           *http.ServeMux
+	readiness     []namedChecker
+	readyTimeout  time.Duration
 }
 
-func NewServer(logger *slog.Logger, authenticator auth.Authenticator, svc PlatformService) *Server {
+type ReadinessChecker interface {
+	Ready(context.Context) error
+}
+
+type namedChecker struct {
+	name    string
+	checker ReadinessChecker
+}
+
+func NewServer(logger *slog.Logger, authenticator auth.Authenticator, svc PlatformService, readyTimeout time.Duration, readiness ...namedChecker) *Server {
+	if readyTimeout <= 0 {
+		readyTimeout = 3 * time.Second
+	}
 	s := &Server{
 		logger:        logger,
 		authenticator: authenticator,
 		service:       svc,
 		mux:           http.NewServeMux(),
+		readiness:     readiness,
+		readyTimeout:  readyTimeout,
 	}
 	s.routes()
 	return s
@@ -67,6 +84,26 @@ func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *Server) handleReady(w http.ResponseWriter, _ *http.Request) {
+	ctx, cancel := context.WithTimeout(context.Background(), s.readyTimeout)
+	defer cancel()
+
+	failures := map[string]string{}
+	for _, check := range s.readiness {
+		if check.checker == nil {
+			continue
+		}
+		if err := check.checker.Ready(ctx); err != nil {
+			failures[check.name] = err.Error()
+		}
+	}
+	if len(failures) > 0 {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"status":   "not_ready",
+			"failures": failures,
+		})
+		return
+	}
+
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ready"})
 }
 
@@ -212,4 +249,11 @@ func writeJSON(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	_ = json.NewEncoder(w).Encode(v)
+}
+
+func NamedChecker(name string, checker ReadinessChecker) namedChecker {
+	return namedChecker{
+		name:    strings.TrimSpace(fmt.Sprintf("%s", name)),
+		checker: checker,
+	}
 }

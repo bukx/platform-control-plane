@@ -1,0 +1,19 @@
+image:
+  repository: us-docker.pkg.dev/your-project/platform/platform-control-plane
+  tag: v0.2.0
+
+ingress:
+  enabled: true
+  className: gce
+  hosts:
+    - host: platform-control-plane.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+
+secretRefs:
+  existingSecret: platform-control-plane-secrets
+
+config:
+  clusterName: gke-prod
+  gitPushEnabled: true

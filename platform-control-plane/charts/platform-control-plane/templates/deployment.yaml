@@ -1,0 +1,115 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "platform-control-plane.fullname" . }}
+  labels:
+    {{- include "platform-control-plane.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "platform-control-plane.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "platform-control-plane.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "platform-control-plane.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: platformd
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "platform-control-plane.fullname" . }}
+            {{- with .Values.extraEnvFrom }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          env:
+            - name: PLATFORM_POSTGRES_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretRefs.existingSecret }}
+                  key: {{ .Values.secretRefs.postgresDsnKey }}
+            - name: PLATFORM_APPROVAL_HMAC_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretRefs.existingSecret }}
+                  key: {{ .Values.secretRefs.approvalHmacSecretKey }}
+            - name: PLATFORM_OIDC_ISSUER_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretRefs.existingSecret }}
+                  key: {{ .Values.secretRefs.oidcIssuerUrlKey }}
+            - name: PLATFORM_OIDC_AUDIENCE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretRefs.existingSecret }}
+                  key: {{ .Values.secretRefs.oidcAudienceKey }}
+            - name: PLATFORM_OIDC_ROLES_CLAIM
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretRefs.existingSecret }}
+                  key: {{ .Values.secretRefs.oidcRolesClaimKey }}
+                  optional: true
+            - name: PLATFORM_OIDC_SUBJECT_CLAIM
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretRefs.existingSecret }}
+                  key: {{ .Values.secretRefs.oidcSubjectClaimKey }}
+                  optional: true
+            - name: PLATFORM_OIDC_ACTOR_CLAIM
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretRefs.existingSecret }}
+                  key: {{ .Values.secretRefs.oidcActorClaimKey }}
+                  optional: true
+            - name: PLATFORM_GITOPS_REPO_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretRefs.existingSecret }}
+                  key: {{ .Values.secretRefs.gitopsRepoUrlKey }}
+                  optional: true
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            - name: gitops
+              mountPath: /var/lib/platform/gitops
+      volumes:
+        - name: gitops
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "platform-control-plane.fullname" . }}-gitops
+          {{- else }}
+          emptyDir: {}
+          {{- end }}

@@ -94,3 +94,7 @@ func (m *MemoryBackend) Retry(ctx context.Context, job Job, _ error, backoff tim
 	})
 	return nil
 }
+
+func (m *MemoryBackend) Ready(context.Context) error {
+	return nil
+}

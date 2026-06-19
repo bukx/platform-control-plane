@@ -131,3 +131,10 @@ func (p *PostgresBackend) Retry(ctx context.Context, job Job, cause error, backo
 	}
 	return nil
 }
+
+func (p *PostgresBackend) Ready(ctx context.Context) error {
+	if err := p.pool.Ping(ctx); err != nil {
+		return fmt.Errorf("ping queue postgres backend: %w", err)
+	}
+	return nil
+}

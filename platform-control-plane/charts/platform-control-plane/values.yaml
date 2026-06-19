@@ -1,0 +1,122 @@
+replicaCount: 2
+
+image:
+  repository: ghcr.io/bukx/platform-control-plane
+  tag: v0.2.0
+  pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  fsGroup: 65532
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: platform-control-plane.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 1
+    memory: 1Gi
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+networkPolicy:
+  enabled: true
+
+config:
+  env: prod
+  strictProduction: true
+  authEnabled: true
+  storageBackend: postgres
+  autoMigrate: false
+  gitopsRepoPath: /var/lib/platform/gitops
+  gitopsRepoURL: https://github.com/your-org/gitops-repo
+  gitAuthorName: Platform Control Plane
+  gitAuthorEmail: platform@example.com
+  gitBranch: main
+  gitRemoteName: origin
+  gitCommitEnabled: true
+  gitPushEnabled: false
+  clusterName: prod-cluster
+  kubeApply: false
+  reconcileWorkers: 2
+  queueBuffer: 32
+  reconcileMaxAttempts: 5
+  reconcileLeaseSeconds: 30
+  reconcilePollMs: 750
+  reconcileBackoffSeconds: 1
+  reconcileMaxBackoffSeconds: 30
+  otlpEndpoint: ""
+  otelServiceName: platform-control-plane
+  prometheusEnabled: true
+  httpReadTimeoutSeconds: 15
+  httpWriteTimeoutSeconds: 30
+  httpIdleTimeoutSeconds: 60
+  httpShutdownTimeoutSeconds: 15
+  readinessTimeoutSeconds: 3
+
+secretRefs:
+  existingSecret: platform-control-plane-secrets
+  postgresDsnKey: PLATFORM_POSTGRES_DSN
+  approvalHmacSecretKey: PLATFORM_APPROVAL_HMAC_SECRET
+  oidcIssuerUrlKey: PLATFORM_OIDC_ISSUER_URL
+  oidcAudienceKey: PLATFORM_OIDC_AUDIENCE
+  oidcRolesClaimKey: PLATFORM_OIDC_ROLES_CLAIM
+  oidcSubjectClaimKey: PLATFORM_OIDC_SUBJECT_CLAIM
+  oidcActorClaimKey: PLATFORM_OIDC_ACTOR_CLAIM
+  gitopsRepoUrlKey: PLATFORM_GITOPS_REPO_URL
+
+persistence:
+  enabled: true
+  accessModes:
+    - ReadWriteOnce
+  size: 5Gi
+  storageClassName: ""
+
+migrationJob:
+  enabled: true
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 300
+
+extraEnv: []
+extraEnvFrom: []
