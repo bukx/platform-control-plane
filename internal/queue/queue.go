@@ -29,6 +29,7 @@ type Backend interface {
 	Claim(context.Context, string, time.Duration) (Job, error)
 	Complete(context.Context, Job) error
 	Retry(context.Context, Job, error, time.Duration, bool) error
+	Ready(context.Context) error
 }
 
 type Config struct {

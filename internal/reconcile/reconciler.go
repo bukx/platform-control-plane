@@ -46,6 +46,7 @@ type Result struct {
 
 type Reconciler interface {
 	Reconcile(context.Context, domain.EnvironmentRequest, domain.EnvironmentClass) (Result, error)
+	Ready(context.Context) error
 }
 
 type GitOpsKubernetesReconciler struct {
@@ -120,6 +121,38 @@ func (r *GitOpsKubernetesReconciler) Reconcile(ctx context.Context, req domain.E
 	}, nil
 }
 
+func (r *GitOpsKubernetesReconciler) Ready(ctx context.Context) error {
+	if err := os.MkdirAll(r.cfg.GitOpsRepoPath, 0o755); err != nil {
+		return fmt.Errorf("ensure gitops repo path: %w", err)
+	}
+	testFile := filepath.Join(r.cfg.GitOpsRepoPath, ".platform-ready")
+	if err := os.WriteFile(testFile, []byte("ok"), 0o644); err != nil {
+		return fmt.Errorf("write gitops readiness file: %w", err)
+	}
+	_ = os.Remove(testFile)
+
+	if _, err := exec.LookPath("git"); err != nil {
+		return fmt.Errorf("git binary unavailable: %w", err)
+	}
+	if err := r.ensureGitRepo(ctx); err != nil {
+		return err
+	}
+	if err := r.ensureGitRemote(ctx); err != nil {
+		return err
+	}
+	if r.cfg.GitPush {
+		if strings.TrimSpace(r.cfg.GitOpsRepoURL) == "" {
+			return fmt.Errorf("git push enabled but PLATFORM_GITOPS_REPO_URL is empty")
+		}
+	}
+	if r.client != nil {
+		if _, err := r.client.Discovery().ServerVersion(); err != nil {
+			return fmt.Errorf("kubernetes api readiness probe failed: %w", err)
+		}
+	}
+	return nil
+}
+
 func (r *GitOpsKubernetesReconciler) publishGitOps(ctx context.Context, relativePath string, req domain.EnvironmentRequest) (string, error) {
 	if !r.cfg.GitCommit {
 		return "", nil
@@ -129,6 +162,9 @@ func (r *GitOpsKubernetesReconciler) publishGitOps(ctx context.Context, relative
 		return "", fmt.Errorf("create gitops repo path: %w", err)
 	}
 	if err := r.ensureGitRepo(ctx); err != nil {
+		return "", err
+	}
+	if err := r.ensureGitRemote(ctx); err != nil {
 		return "", err
 	}
 
@@ -180,6 +216,24 @@ func (r *GitOpsKubernetesReconciler) ensureGitRepo(ctx context.Context) error {
 		return err
 	}
 	return nil
+}
+
+func (r *GitOpsKubernetesReconciler) ensureGitRemote(ctx context.Context) error {
+	if !r.cfg.GitPush || strings.TrimSpace(r.cfg.GitOpsRepoURL) == "" {
+		return nil
+	}
+
+	current, err := r.runGit(ctx, "remote", "get-url", r.cfg.GitRemoteName)
+	if err == nil {
+		if strings.TrimSpace(current) == strings.TrimSpace(r.cfg.GitOpsRepoURL) {
+			return nil
+		}
+		_, err = r.runGit(ctx, "remote", "set-url", r.cfg.GitRemoteName, r.cfg.GitOpsRepoURL)
+		return err
+	}
+
+	_, err = r.runGit(ctx, "remote", "add", r.cfg.GitRemoteName, r.cfg.GitOpsRepoURL)
+	return err
 }
 
 func (r *GitOpsKubernetesReconciler) currentCommitSHA(ctx context.Context) (string, error) {

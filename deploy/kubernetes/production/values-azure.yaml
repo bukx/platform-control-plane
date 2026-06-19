@@ -1,0 +1,19 @@
+image:
+  repository: yourregistry.azurecr.io/platform-control-plane
+  tag: v0.2.0
+
+ingress:
+  enabled: true
+  className: webapprouting.kubernetes.azure.com
+  hosts:
+    - host: platform-control-plane.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+
+secretRefs:
+  existingSecret: platform-control-plane-secrets
+
+config:
+  clusterName: aks-prod
+  gitPushEnabled: true

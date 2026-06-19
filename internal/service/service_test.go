@@ -24,6 +24,10 @@ func (f fakeReconciler) Reconcile(context.Context, domain.EnvironmentRequest, do
 	return f.result, f.err
 }
 
+func (f fakeReconciler) Ready(context.Context) error {
+	return nil
+}
+
 type fakeQueue struct {
 	requestIDs []string
 	err        error

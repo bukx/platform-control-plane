@@ -113,7 +113,16 @@ func main() {
 		}
 	}
 
-	server := api.NewServer(logger, authenticator, svc)
+	server := api.NewServer(
+		logger,
+		authenticator,
+		svc,
+		time.Duration(cfg.ReadinessTimeoutSec)*time.Second,
+		api.NamedChecker("repository", repo),
+		api.NamedChecker("queue", queueBackend),
+		api.NamedChecker("reconciler", reconciler),
+		api.NamedChecker("auth", authenticator),
+	)
 	handler := observability.HTTPMiddleware("platform-api", server.Handler())
 	if telemetry.MetricsHandler != nil {
 		root := http.NewServeMux()
@@ -126,6 +135,9 @@ func main() {
 		Addr:              cfg.Address,
 		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       time.Duration(cfg.ReadTimeoutSec) * time.Second,
+		WriteTimeout:      time.Duration(cfg.WriteTimeoutSec) * time.Second,
+		IdleTimeout:       time.Duration(cfg.IdleTimeoutSec) * time.Second,
 	}
 
 	go func() {
@@ -140,7 +152,7 @@ func main() {
 	defer stop()
 	<-ctx.Done()
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.ShutdownTimeoutSec)*time.Second)
 	defer cancel()
 
 	logger.Info("platformd_shutting_down")
@@ -161,7 +173,7 @@ func buildRepository(ctx context.Context, cfg config.Config) (store.Repository, 
 		if cfg.PostgresDSN == "" {
 			return nil, errors.New("PLATFORM_POSTGRES_DSN is required when PLATFORM_STORAGE_BACKEND=postgres")
 		}
-		return store.NewPostgresRepository(ctx, cfg.PostgresDSN)
+		return store.NewPostgresRepository(ctx, cfg.PostgresDSN, store.PostgresOptions{AutoMigrate: cfg.AutoMigrate})
 	default:
 		return nil, errors.New("unsupported PLATFORM_STORAGE_BACKEND: " + cfg.StorageBackend)
 	}

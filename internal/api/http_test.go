@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"go.opentelemetry.io/otel/metric/noop"
 
@@ -30,7 +31,7 @@ func TestCreateAndFetchRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewAuthenticator: %v", err)
 	}
-	server := NewServer(slog.Default(), authenticator, svc)
+	server := NewServer(slog.Default(), authenticator, svc, time.Second, NamedChecker("repository", repo), NamedChecker("auth", authenticator))
 
 	body := domain.CreateRequestInput{
 		App:        "payments-api",
@@ -82,7 +83,7 @@ func TestRejectsMissingAuthHeaders(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewAuthenticator: %v", err)
 	}
-	server := NewServer(slog.Default(), authenticator, svc)
+	server := NewServer(slog.Default(), authenticator, svc, time.Second, NamedChecker("repository", repo), NamedChecker("auth", authenticator))
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/environment-classes", nil)
 	res := httptest.NewRecorder()
@@ -97,6 +98,10 @@ type fakeAPITestReconciler struct{}
 
 func (fakeAPITestReconciler) Reconcile(context.Context, domain.EnvironmentRequest, domain.EnvironmentClass) (reconcile.Result, error) {
 	return reconcile.Result{}, nil
+}
+
+func (fakeAPITestReconciler) Ready(context.Context) error {
+	return nil
 }
 
 func mintTestToken(t *testing.T, secret, subject, actor, role string) string {

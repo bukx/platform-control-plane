@@ -7,9 +7,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v5"
@@ -44,6 +46,7 @@ type Config struct {
 
 type Authenticator interface {
 	Authenticate(*http.Request) (Identity, error)
+	Ready(context.Context) error
 }
 
 type contextKey string
@@ -60,6 +63,7 @@ type JWTAuthenticator struct {
 	subjectClaim      string
 	actorClaim        string
 	staticSecretBytes []byte
+	httpClient        *http.Client
 }
 
 func NewAuthenticator(ctx context.Context, cfg Config) (Authenticator, error) {
@@ -74,6 +78,7 @@ func NewAuthenticator(ctx context.Context, cfg Config) (Authenticator, error) {
 		subjectClaim:      fallback(cfg.SubjectClaim, "sub"),
 		actorClaim:        fallback(cfg.ActorClaim, "email"),
 		staticSecretBytes: []byte(cfg.StaticJWTSecret),
+		httpClient:        &http.Client{Timeout: 3 * time.Second},
 	}
 
 	if cfg.IssuerURL != "" {
@@ -153,6 +158,27 @@ func (a *JWTAuthenticator) Authenticate(r *http.Request) (Identity, error) {
 		Role:              role,
 		ApprovalSignature: strings.TrimSpace(r.Header.Get(HeaderApprovalSignature)),
 	}, nil
+}
+
+func (a *JWTAuthenticator) Ready(ctx context.Context) error {
+	if a == nil || a.issuerURL == "" {
+		return nil
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(a.issuerURL, "/")+"/.well-known/openid-configuration", nil)
+	if err != nil {
+		return fmt.Errorf("build oidc readiness request: %w", err)
+	}
+	resp, err := a.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("oidc readiness probe failed: %w", err)
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, resp.Body)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("oidc readiness probe returned status %d", resp.StatusCode)
+	}
+	return nil
 }
 
 func WithIdentity(ctx context.Context, identity Identity) context.Context {

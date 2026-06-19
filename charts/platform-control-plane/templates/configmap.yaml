@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "platform-control-plane.fullname" . }}
+  labels:
+    {{- include "platform-control-plane.labels" . | nindent 4 }}
+data:
+  PLATFORM_ENV: {{ .Values.config.env | quote }}
+  PLATFORM_STRICT_PRODUCTION: {{ .Values.config.strictProduction | quote }}
+  PLATFORM_AUTH_ENABLED: {{ .Values.config.authEnabled | quote }}
+  PLATFORM_STORAGE_BACKEND: {{ .Values.config.storageBackend | quote }}
+  PLATFORM_AUTO_MIGRATE: {{ .Values.config.autoMigrate | quote }}
+  PLATFORM_GITOPS_REPO_PATH: {{ .Values.config.gitopsRepoPath | quote }}
+  PLATFORM_GIT_AUTHOR_NAME: {{ .Values.config.gitAuthorName | quote }}
+  PLATFORM_GIT_AUTHOR_EMAIL: {{ .Values.config.gitAuthorEmail | quote }}
+  PLATFORM_GIT_BRANCH: {{ .Values.config.gitBranch | quote }}
+  PLATFORM_GIT_REMOTE: {{ .Values.config.gitRemoteName | quote }}
+  PLATFORM_GIT_COMMIT_ENABLED: {{ .Values.config.gitCommitEnabled | quote }}
+  PLATFORM_GIT_PUSH_ENABLED: {{ .Values.config.gitPushEnabled | quote }}
+  PLATFORM_CLUSTER_NAME: {{ .Values.config.clusterName | quote }}
+  PLATFORM_K8S_APPLY: {{ .Values.config.kubeApply | quote }}
+  PLATFORM_RECONCILE_WORKERS: {{ .Values.config.reconcileWorkers | quote }}
+  PLATFORM_QUEUE_BUFFER: {{ .Values.config.queueBuffer | quote }}
+  PLATFORM_RECONCILE_MAX_ATTEMPTS: {{ .Values.config.reconcileMaxAttempts | quote }}
+  PLATFORM_RECONCILE_LEASE_SECONDS: {{ .Values.config.reconcileLeaseSeconds | quote }}
+  PLATFORM_RECONCILE_POLL_MS: {{ .Values.config.reconcilePollMs | quote }}
+  PLATFORM_RECONCILE_BACKOFF_SECONDS: {{ .Values.config.reconcileBackoffSeconds | quote }}
+  PLATFORM_RECONCILE_MAX_BACKOFF_SECONDS: {{ .Values.config.reconcileMaxBackoffSeconds | quote }}
+  PLATFORM_OTLP_ENDPOINT: {{ .Values.config.otlpEndpoint | quote }}
+  PLATFORM_OTEL_SERVICE_NAME: {{ .Values.config.otelServiceName | quote }}
+  PLATFORM_PROMETHEUS_ENABLED: {{ .Values.config.prometheusEnabled | quote }}
+  PLATFORM_HTTP_READ_TIMEOUT_SECONDS: {{ .Values.config.httpReadTimeoutSeconds | quote }}
+  PLATFORM_HTTP_WRITE_TIMEOUT_SECONDS: {{ .Values.config.httpWriteTimeoutSeconds | quote }}
+  PLATFORM_HTTP_IDLE_TIMEOUT_SECONDS: {{ .Values.config.httpIdleTimeoutSeconds | quote }}
+  PLATFORM_HTTP_SHUTDOWN_TIMEOUT_SECONDS: {{ .Values.config.httpShutdownTimeoutSeconds | quote }}
+  PLATFORM_READINESS_TIMEOUT_SECONDS: {{ .Values.config.readinessTimeoutSeconds | quote }}

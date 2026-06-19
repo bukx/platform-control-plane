@@ -1,6 +1,6 @@
 APP_NAME := platform-control-plane
 
-.PHONY: fmt test build run cli-classes cli-request-create cli-request-list dev-stack-up dev-stack-down
+.PHONY: fmt test build run migrate cli-classes cli-request-create cli-request-list dev-stack-up dev-stack-down
 
 fmt:
 	go fmt ./...
@@ -12,11 +12,15 @@ build:
 	mkdir -p bin
 	go build -o bin/platformd ./cmd/platformd
 	go build -o bin/platformctl ./cmd/platformctl
+	go build -o bin/platformmigrate ./cmd/platformmigrate
 
 run:
 	PLATFORM_APPROVAL_HMAC_SECRET=$${PLATFORM_APPROVAL_HMAC_SECRET:-dev-approval-secret} \
 	PLATFORM_JWT_HS256_SECRET=$${PLATFORM_JWT_HS256_SECRET:-dev-jwt-secret} \
 	go run ./cmd/platformd
+
+migrate:
+	go run ./cmd/platformmigrate
 
 cli-classes:
 	TOKEN=$$(go run ./cmd/platformctl token mint --subject viewer --actor viewer@example.com --role viewer --secret $${PLATFORM_JWT_HS256_SECRET:-dev-jwt-secret}); \

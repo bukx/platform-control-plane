@@ -1,0 +1,21 @@
+image:
+  repository: 123456789012.dkr.ecr.us-east-1.amazonaws.com/platform-control-plane
+  tag: v0.2.0
+
+ingress:
+  enabled: true
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+  hosts:
+    - host: platform-control-plane.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+
+secretRefs:
+  existingSecret: platform-control-plane-secrets
+
+config:
+  clusterName: eks-prod
+  gitPushEnabled: true

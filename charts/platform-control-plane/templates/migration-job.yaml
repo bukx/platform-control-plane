@@ -1,0 +1,39 @@
+{{- if .Values.migrationJob.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "platform-control-plane.fullname" . }}-migrate
+  labels:
+    {{- include "platform-control-plane.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: {{ .Values.migrationJob.backoffLimit }}
+  ttlSecondsAfterFinished: {{ .Values.migrationJob.ttlSecondsAfterFinished }}
+  template:
+    metadata:
+      labels:
+        {{- include "platform-control-plane.selectorLabels" . | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "platform-control-plane.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: platformmigrate
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/platformmigrate"]
+          envFrom:
+            - configMapRef:
+                name: {{ include "platform-control-plane.fullname" . }}
+          env:
+            - name: PLATFORM_POSTGRES_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretRefs.existingSecret }}
+                  key: {{ .Values.secretRefs.postgresDsnKey }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+{{- end }}
