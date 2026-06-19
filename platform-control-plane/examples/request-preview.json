@@ -1,0 +1,14 @@
+{
+  "app": "payments-api",
+  "team": "platform",
+  "class": "preview",
+  "region": "us-east-1",
+  "ttl_hours": 24,
+  "owner": "mcmoney",
+  "repository": "https://github.com/mcmoney/payments-api",
+  "revision": "main",
+  "labels": {
+    "cost-center": "eng",
+    "repository": "github.com/mcmoney/payments-api"
+  }
+}

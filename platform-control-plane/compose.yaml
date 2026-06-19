@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: platform
+      POSTGRES_USER: platform
+      POSTGRES_PASSWORD: platform
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.58
+    ports:
+      - "16686:16686"
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.102.1
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./deploy/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "4318:4318"
+    depends_on:
+      - jaeger
+
+volumes:
+  postgres-data:

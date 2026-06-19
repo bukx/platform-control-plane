@@ -1,0 +1,395 @@
+package store
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/mcmoney/platform-control-plane/internal/domain"
+)
+
+type PostgresRepository struct {
+	pool *pgxpool.Pool
+}
+
+func (r *PostgresRepository) Pool() *pgxpool.Pool {
+	return r.pool
+}
+
+func NewPostgresRepository(ctx context.Context, dsn string) (*PostgresRepository, error) {
+	pool, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		return nil, fmt.Errorf("create postgres pool: %w", err)
+	}
+
+	repo := &PostgresRepository{pool: pool}
+	if err := repo.ensureSchema(ctx); err != nil {
+		pool.Close()
+		return nil, err
+	}
+
+	return repo, nil
+}
+
+func (r *PostgresRepository) Close() error {
+	r.pool.Close()
+	return nil
+}
+
+func (r *PostgresRepository) UpsertClasses(ctx context.Context, classes []domain.EnvironmentClass) error {
+	const query = `
+	insert into environment_classes (
+		name, description, allowed_regions, requires_approval, max_ttl_hours, default_namespaces
+	) values ($1, $2, $3, $4, $5, $6)
+	on conflict (name) do update set
+		description = excluded.description,
+		allowed_regions = excluded.allowed_regions,
+		requires_approval = excluded.requires_approval,
+		max_ttl_hours = excluded.max_ttl_hours,
+		default_namespaces = excluded.default_namespaces
+	`
+
+	for _, class := range classes {
+		if _, err := r.pool.Exec(ctx, query,
+			class.Name,
+			class.Description,
+			class.AllowedRegions,
+			class.RequiresApproval,
+			class.MaxTTLHours,
+			class.DefaultNamespaces,
+		); err != nil {
+			return fmt.Errorf("upsert environment class %s: %w", class.Name, err)
+		}
+	}
+
+	return nil
+}
+
+func (r *PostgresRepository) ListClasses(ctx context.Context) ([]domain.EnvironmentClass, error) {
+	rows, err := r.pool.Query(ctx, `
+		select name, description, allowed_regions, requires_approval, max_ttl_hours, default_namespaces
+		from environment_classes
+		order by name
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("list environment classes: %w", err)
+	}
+	defer rows.Close()
+
+	items, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.EnvironmentClass, error) {
+		var item domain.EnvironmentClass
+		err := row.Scan(
+			&item.Name,
+			&item.Description,
+			&item.AllowedRegions,
+			&item.RequiresApproval,
+			&item.MaxTTLHours,
+			&item.DefaultNamespaces,
+		)
+		return item, err
+	})
+	if err != nil {
+		return nil, fmt.Errorf("scan environment classes: %w", err)
+	}
+
+	return items, nil
+}
+
+func (r *PostgresRepository) GetClass(ctx context.Context, name string) (domain.EnvironmentClass, error) {
+	var item domain.EnvironmentClass
+	err := r.pool.QueryRow(ctx, `
+		select name, description, allowed_regions, requires_approval, max_ttl_hours, default_namespaces
+		from environment_classes
+		where name = $1
+	`, name).Scan(
+		&item.Name,
+		&item.Description,
+		&item.AllowedRegions,
+		&item.RequiresApproval,
+		&item.MaxTTLHours,
+		&item.DefaultNamespaces,
+	)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return domain.EnvironmentClass{}, ErrNotFound
+		}
+		return domain.EnvironmentClass{}, fmt.Errorf("get environment class %s: %w", name, err)
+	}
+
+	return item, nil
+}
+
+func (r *PostgresRepository) CreateRequest(ctx context.Context, req domain.EnvironmentRequest) (domain.EnvironmentRequest, error) {
+	labels, err := json.Marshal(req.Labels)
+	if err != nil {
+		return domain.EnvironmentRequest{}, fmt.Errorf("marshal request labels: %w", err)
+	}
+
+	const query = `
+	insert into environment_requests (
+		id, app, team, class, region, ttl_hours, owner, repository, revision, labels,
+		namespace, gitops_path, last_error, status, version, created_at, queued_at, approved_at, approved_by, approval_signature, last_reconciled_at, git_commit_sha, git_branch
+	) values (
+		$1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb,
+		$11, $12, $13, $14, 1, $15, $16, $17, $18, $19, $20, $21, $22
+	)
+	returning version
+	`
+
+	err = r.pool.QueryRow(ctx, query,
+		req.ID,
+		req.App,
+		req.Team,
+		req.Class,
+		req.Region,
+		req.TTLHours,
+		req.Owner,
+		req.Repository,
+		req.Revision,
+		labels,
+		req.Namespace,
+		req.GitOpsPath,
+		req.LastError,
+		req.Status,
+		req.CreatedAt,
+		req.QueuedAt,
+		req.ApprovedAt,
+		req.ApprovedBy,
+		req.ApprovalSignature,
+		req.LastReconciledAt,
+		req.GitCommitSHA,
+		req.GitBranch,
+	).Scan(&req.Version)
+	if err != nil {
+		return domain.EnvironmentRequest{}, fmt.Errorf("create environment request %s: %w", req.ID, err)
+	}
+
+	return req, nil
+}
+
+func (r *PostgresRepository) UpdateRequest(ctx context.Context, req domain.EnvironmentRequest) (domain.EnvironmentRequest, error) {
+	labels, err := json.Marshal(req.Labels)
+	if err != nil {
+		return domain.EnvironmentRequest{}, fmt.Errorf("marshal request labels: %w", err)
+	}
+
+	const query = `
+	update environment_requests
+	set app = $2,
+		team = $3,
+		class = $4,
+		region = $5,
+		ttl_hours = $6,
+		owner = $7,
+		repository = $8,
+		revision = $9,
+		labels = $10::jsonb,
+		namespace = $11,
+		gitops_path = $12,
+		last_error = $13,
+		status = $14,
+		version = version + 1,
+		queued_at = $15,
+		approved_at = $16,
+		approved_by = $17,
+		approval_signature = $18,
+		last_reconciled_at = $19,
+		git_commit_sha = $20,
+		git_branch = $21
+	where id = $1
+	returning version
+	`
+
+	err = r.pool.QueryRow(ctx, query,
+		req.ID,
+		req.App,
+		req.Team,
+		req.Class,
+		req.Region,
+		req.TTLHours,
+		req.Owner,
+		req.Repository,
+		req.Revision,
+		labels,
+		req.Namespace,
+		req.GitOpsPath,
+		req.LastError,
+		req.Status,
+		req.QueuedAt,
+		req.ApprovedAt,
+		req.ApprovedBy,
+		req.ApprovalSignature,
+		req.LastReconciledAt,
+		req.GitCommitSHA,
+		req.GitBranch,
+	).Scan(&req.Version)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return domain.EnvironmentRequest{}, ErrNotFound
+		}
+		return domain.EnvironmentRequest{}, fmt.Errorf("update environment request %s: %w", req.ID, err)
+	}
+
+	return req, nil
+}
+
+func (r *PostgresRepository) GetRequest(ctx context.Context, id string) (domain.EnvironmentRequest, error) {
+	row := r.pool.QueryRow(ctx, `
+		select id, app, team, class, region, ttl_hours, owner, repository, revision, labels,
+		       namespace, gitops_path, last_error, status, version, created_at, queued_at, approved_at, approved_by, approval_signature, last_reconciled_at, git_commit_sha, git_branch
+		from environment_requests
+		where id = $1
+	`, id)
+
+	req, err := scanRequestRow(row)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return domain.EnvironmentRequest{}, ErrNotFound
+		}
+		return domain.EnvironmentRequest{}, fmt.Errorf("get environment request %s: %w", id, err)
+	}
+
+	return req, nil
+}
+
+func (r *PostgresRepository) ListRequests(ctx context.Context) ([]domain.EnvironmentRequest, error) {
+	rows, err := r.pool.Query(ctx, `
+		select id, app, team, class, region, ttl_hours, owner, repository, revision, labels,
+		       namespace, gitops_path, last_error, status, version, created_at, queued_at, approved_at, approved_by, approval_signature, last_reconciled_at, git_commit_sha, git_branch
+		from environment_requests
+		order by created_at
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("list environment requests: %w", err)
+	}
+	defer rows.Close()
+
+	items, err := pgx.CollectRows(rows, scanRequest)
+	if err != nil {
+		return nil, fmt.Errorf("scan environment requests: %w", err)
+	}
+
+	return items, nil
+}
+
+func (r *PostgresRepository) ensureSchema(ctx context.Context) error {
+	const ddl = `
+	create table if not exists environment_classes (
+		name text primary key,
+		description text not null,
+		allowed_regions text[] not null,
+		requires_approval boolean not null,
+		max_ttl_hours integer not null,
+		default_namespaces integer not null
+	);
+
+	create table if not exists environment_requests (
+		id text primary key,
+		app text not null,
+		team text not null,
+		class text not null references environment_classes(name),
+		region text not null,
+		ttl_hours integer not null,
+		owner text not null,
+		repository text not null,
+		revision text not null,
+		labels jsonb not null default '{}'::jsonb,
+		namespace text not null default '',
+		gitops_path text not null default '',
+		last_error text not null default '',
+		status text not null,
+		version integer not null default 1,
+		created_at timestamptz not null,
+		queued_at timestamptz null,
+		approved_at timestamptz null,
+		approved_by text not null default '',
+		approval_signature text not null default '',
+		last_reconciled_at timestamptz null
+		,
+		git_commit_sha text not null default '',
+		git_branch text not null default ''
+	);
+
+	create index if not exists environment_requests_team_idx on environment_requests(team);
+	create index if not exists environment_requests_status_idx on environment_requests(status);
+
+	create table if not exists reconcile_jobs (
+		id bigserial primary key,
+		request_id text not null unique references environment_requests(id) on delete cascade,
+		status text not null,
+		attempts integer not null default 0,
+		max_attempts integer not null default 5,
+		next_run_at timestamptz not null default now(),
+		leased_until timestamptz null,
+		worker_id text not null default '',
+		last_error text not null default '',
+		created_at timestamptz not null default now(),
+		updated_at timestamptz not null default now()
+	);
+
+	create index if not exists reconcile_jobs_status_next_run_idx on reconcile_jobs(status, next_run_at);
+	`
+
+	if _, err := r.pool.Exec(ctx, ddl); err != nil {
+		return fmt.Errorf("ensure postgres schema: %w", err)
+	}
+
+	return nil
+}
+
+func scanRequest(row pgx.CollectableRow) (domain.EnvironmentRequest, error) {
+	return scanRequestValues(row)
+}
+
+func scanRequestRow(row pgx.Row) (domain.EnvironmentRequest, error) {
+	return scanRequestValues(row)
+}
+
+func scanRequestValues(row interface {
+	Scan(dest ...any) error
+}) (domain.EnvironmentRequest, error) {
+	var (
+		req       domain.EnvironmentRequest
+		labelData []byte
+	)
+
+	err := row.Scan(
+		&req.ID,
+		&req.App,
+		&req.Team,
+		&req.Class,
+		&req.Region,
+		&req.TTLHours,
+		&req.Owner,
+		&req.Repository,
+		&req.Revision,
+		&labelData,
+		&req.Namespace,
+		&req.GitOpsPath,
+		&req.LastError,
+		&req.Status,
+		&req.Version,
+		&req.CreatedAt,
+		&req.QueuedAt,
+		&req.ApprovedAt,
+		&req.ApprovedBy,
+		&req.ApprovalSignature,
+		&req.LastReconciledAt,
+		&req.GitCommitSHA,
+		&req.GitBranch,
+	)
+	if err != nil {
+		return domain.EnvironmentRequest{}, err
+	}
+
+	if len(labelData) > 0 {
+		if err := json.Unmarshal(labelData, &req.Labels); err != nil {
+			return domain.EnvironmentRequest{}, fmt.Errorf("unmarshal request labels: %w", err)
+		}
+	}
+
+	return req, nil
+}
