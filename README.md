@@ -3,7 +3,7 @@
 [![CI](https://github.com/bukx/platform-control-plane/actions/workflows/ci.yml/badge.svg)](https://github.com/bukx/platform-control-plane/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/bukx/platform-control-plane)](https://github.com/bukx/platform-control-plane/releases)
 
-`platform-control-plane` is a principal-level Go platform engineering showcase repo: a thin internal developer platform control plane that accepts environment requests, enforces approval policy, persists state in Postgres, emits OpenTelemetry telemetry, drives async reconciliation, and publishes real GitOps commits plus Kubernetes bootstrap artifacts.
+`platform-control-plane` is a thin internal developer platform control plane that accepts environment requests, enforces approval policy, persists state in Postgres, emits OpenTelemetry telemetry, drives async reconciliation, and publishes real GitOps commits plus Kubernetes bootstrap artifacts.
 
 This is intentionally positioned above a toy CRUD service. It is meant to read like the beginning of a real internal platform team control plane:
 
