@@ -297,7 +297,8 @@ func (r *GitOpsKubernetesReconciler) publishGitOps(ctx context.Context, relative
 }
 
 func (r *GitOpsKubernetesReconciler) ensureGitRepo(ctx context.Context) error {
-	if _, err := r.runGit(ctx, "rev-parse", "--show-toplevel"); err == nil {
+	gitDir := filepath.Join(r.cfg.GitOpsRepoPath, ".git")
+	if _, err := os.Stat(gitDir); err == nil {
 		return nil
 	}
 	_, err := r.runGit(ctx, "init", "-b", r.cfg.GitBranch)
