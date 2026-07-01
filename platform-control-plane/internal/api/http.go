@@ -66,17 +66,12 @@ func (s *Server) Handler() http.Handler {
 func (s *Server) routes() {
 	s.mux.HandleFunc("GET /healthz", s.handleHealth)
 	s.mux.HandleFunc("GET /readyz", s.handleReady)
-	s.mux.HandleFunc("GET /metrics", s.handleNotFound)
 	s.mux.Handle("GET /v1/environment-classes", s.withIdentity([]auth.Role{auth.RoleViewer, auth.RoleRequester, auth.RoleApprover, auth.RoleAdmin}, http.HandlerFunc(s.handleListClasses)))
 	s.mux.Handle("GET /v1/environment-requests", s.withIdentity([]auth.Role{auth.RoleViewer, auth.RoleRequester, auth.RoleApprover, auth.RoleAdmin}, http.HandlerFunc(s.handleListRequests)))
 	s.mux.Handle("POST /v1/environment-requests", s.withIdentity([]auth.Role{auth.RoleRequester, auth.RoleAdmin}, http.HandlerFunc(s.handleCreateRequest)))
 	s.mux.Handle("GET /v1/environment-requests/{id}", s.withIdentity([]auth.Role{auth.RoleViewer, auth.RoleRequester, auth.RoleApprover, auth.RoleAdmin}, http.HandlerFunc(s.handleGetRequest)))
 	s.mux.Handle("POST /v1/environment-requests/{id}/approve", s.withIdentity([]auth.Role{auth.RoleApprover, auth.RoleAdmin}, http.HandlerFunc(s.handleApproveRequest)))
 	s.mux.Handle("POST /v1/environment-requests/{id}/reconcile", s.withIdentity([]auth.Role{auth.RoleApprover, auth.RoleAdmin}, http.HandlerFunc(s.handleReconcileRequest)))
-}
-
-func (s *Server) handleNotFound(w http.ResponseWriter, _ *http.Request) {
-	writeError(w, http.StatusNotFound, errors.New("endpoint not configured"))
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {
